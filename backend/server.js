@@ -1,32 +1,28 @@
-const path = require("path");
-
-require("dotenv").config({
-    path: path.join(__dirname, ".env")
-});
+// ============================================================
+// CanIRun - Backend
+// ============================================================
 
 const express = require("express");
 const cors = require("cors");
+const dotenv = require("dotenv");
+const path = require("path");
+
+dotenv.config({
+    path: path.join(__dirname, ".env")
+});
 
 const app = express();
 
-const PORT =
-    process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
+const RAWG_API_KEY = process.env.RAWG_API_KEY;
+
+
+// ============================================================
+// MIDDLEWARE
+// ============================================================
 
 app.use(cors());
-
 app.use(express.json());
-
-const RAWG_API_KEY =
-    process.env.RAWG_API_KEY;
-
-if (!RAWG_API_KEY) {
-
-    console.error(
-        "❌ RAWG_API_KEY manquante"
-    );
-
-    process.exit(1);
-}
 
 
 // ============================================================
@@ -38,7 +34,6 @@ app.use(
         path.join(__dirname, "..")
     )
 );
-
 
 app.get("/", (req, res) => {
 
@@ -53,38 +48,278 @@ app.get("/", (req, res) => {
 
 
 // ============================================================
+// HELPERS
+// ============================================================
+
+function normalizeText(text) {
+
+    return String(text || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+}
+
+
+function calculateSearchScore(game, query) {
+
+    const name =
+        normalizeText(game.name);
+
+    const search =
+        normalizeText(query);
+
+    if (!name || !search) {
+        return 0;
+    }
+
+    let score = 0;
+
+    const words =
+        search
+            .split(/\s+/)
+            .filter(Boolean);
+
+
+    // Correspondance exacte
+    if (name === search) {
+        score += 10000;
+    }
+
+
+    // Le nom commence exactement par la recherche
+    if (name.startsWith(search)) {
+        score += 5000;
+    }
+
+
+    // Le premier mot correspond
+    if (
+        name
+            .split(/\s+/)[0]
+            ?.startsWith(words[0])
+    ) {
+        score += 3000;
+    }
+
+
+    // Chaque mot recherché présent dans le nom
+    for (const word of words) {
+
+        if (name.includes(word)) {
+            score += 1000;
+        }
+    }
+
+
+    // Recherche par acronymes / cas fréquents
+    const aliases = {
+
+        "fc": [
+            "ea sports fc"
+        ],
+
+        "cod": [
+            "call of duty"
+        ],
+
+        "gta": [
+            "grand theft auto"
+        ],
+
+        "mc": [
+            "minecraft"
+        ],
+
+        "mw": [
+            "modern warfare"
+        ],
+
+        "bo": [
+            "black ops"
+        ],
+
+        "rdr": [
+            "red dead redemption"
+        ],
+
+        "spider": [
+            "spider-man"
+        ],
+
+        "ark": [
+            "arkham"
+        ]
+    };
+
+
+    if (aliases[search]) {
+
+        for (const alias of aliases[search]) {
+
+            if (name.includes(alias)) {
+                score += 6000;
+            }
+        }
+    }
+
+
+    // Popularité RAWG
+    const popularity =
+        Number(game.added || 0);
+
+    score += Math.min(
+        popularity / 10,
+        1500
+    );
+
+
+    // Note RAWG
+    const rating =
+        Number(game.rating || 0);
+
+    score += rating * 100;
+
+
+    // Nombre de votes
+    const ratingsCount =
+        Number(game.ratings_count || 0);
+
+    score += Math.min(
+        ratingsCount / 100,
+        500
+    );
+
+
+    // Les jeux récents sont légèrement favorisés
+    if (game.released) {
+
+        const year =
+            new Date(game.released).getFullYear();
+
+        if (!Number.isNaN(year)) {
+
+            const currentYear =
+                new Date().getFullYear();
+
+            const age =
+                currentYear - year;
+
+            if (age <= 1) {
+                score += 250;
+            } else if (age <= 3) {
+                score += 150;
+            }
+        }
+    }
+
+
+    return score;
+}
+
+
+function sortGames(games, query) {
+
+    return [...games].sort(
+        (a, b) =>
+            calculateSearchScore(b, query) -
+            calculateSearchScore(a, query)
+    );
+}
+
+
+// ============================================================
+// FORMAT RAWG GAME
+// ============================================================
+
+function formatGame(game) {
+
+    return {
+
+        id: game.id,
+
+        name: game.name,
+
+        cover:
+            game.background_image ||
+            game.image ||
+            null,
+
+        releaseDate:
+            game.released ||
+            null,
+
+        rating:
+            game.rating ||
+            0,
+
+        ratingsCount:
+            game.ratings_count ||
+            0,
+
+        popularity:
+            game.added ||
+            0,
+
+        genres:
+            Array.isArray(game.genres)
+                ? game.genres.map(
+                    genre => genre.name
+                )
+                : []
+    };
+}
+
+
+// ============================================================
 // API
 // ============================================================
 
 app.get("/api", (req, res) => {
 
     res.json({
-
         name: "CanIRun API",
-
-        version: "3.1.0",
-
-        status: "online",
-
-        source: "RAWG"
-
+        status: "online"
     });
-
 });
 
+
+// ============================================================
+// SEARCH GAMES
+// ============================================================
 
 app.get("/api/games", async (req, res) => {
 
     try {
 
-        const search =
-            req.query.search || "";
+        if (!RAWG_API_KEY) {
 
-        const page =
-            Number(req.query.page) || 1;
+            return res.status(500).json({
+                error: "RAWG_API_KEY manquante."
+            });
+        }
+
+
+        const query =
+            String(req.query.search || "")
+                .trim();
+
 
         const pageSize =
-            Number(req.query.page_size) || 20;
+            Math.min(
+                Math.max(
+                    Number(req.query.page_size) || 20,
+                    1
+                ),
+                40
+            );
+
+
+        const page =
+            Math.max(
+                Number(req.query.page) || 1,
+                1
+            );
 
 
         const params =
@@ -92,27 +327,31 @@ app.get("/api/games", async (req, res) => {
 
                 key: RAWG_API_KEY,
 
-                page:
-                    page.toString(),
+                page: String(page),
 
-                page_size:
-                    Math.min(
+                page_size: String(
+                    Math.max(
                         pageSize,
-                        40
-                    ).toString()
-
+                        20
+                    )
+                )
             });
 
 
-        if (search.trim()) {
+        if (query) {
 
             params.set(
                 "search",
-                search.trim()
+                query
             );
 
             params.set(
                 "search_precise",
+                "false"
+            );
+
+            params.set(
+                "search_exact",
                 "false"
             );
         }
@@ -128,25 +367,22 @@ app.get("/api/games", async (req, res) => {
 
         if (!response.ok) {
 
-            const errorText =
+            const text =
                 await response.text();
 
             console.error(
-                "RAWG ERROR:",
+                "RAWG error:",
                 response.status,
-                errorText
+                text
             );
 
-            return res
-                .status(response.status)
-                .json({
+            return res.status(
+                response.status
+            ).json({
 
-                    error: "Erreur RAWG",
-
-                    status:
-                        response.status
-
-                });
+                error:
+                    "Erreur lors de la recherche RAWG."
+            });
         }
 
 
@@ -154,127 +390,57 @@ app.get("/api/games", async (req, res) => {
             await response.json();
 
 
-        const games =
-            data.results.map(game => ({
-
-                id:
-                    game.id,
-
-                name:
-                    game.name,
-
-                slug:
-                    game.slug,
-
-                description:
-                    game.short_description ||
-                    "",
-
-                cover:
-                    game.background_image ||
-                    null,
-
-                releaseDate:
-                    game.released ||
-                    null,
-
-                rating:
-                    game.rating ||
-                    0,
-
-                ratingsCount:
-                    game.ratings_count ||
-                    0,
+        let games =
+            Array.isArray(data.results)
+                ? data.results
+                : [];
 
 
-                genres:
-                    game.genres
-                        ? game.genres.map(
-                            genre =>
-                                genre.name
-                        )
-                        : [],
+        // Recherche intelligente
+        if (query) {
+
+            games =
+                sortGames(
+                    games,
+                    query
+                );
+        }
 
 
-                platforms:
-                    game.platforms
-                        ? game.platforms.map(
-                            platform => ({
-
-                                name:
-                                    platform
-                                        .platform
-                                        ?.name ||
-                                    "Unknown",
-
-                                requirements:
-                                    platform
-                                        .requirements ||
-                                    null
-
-                            })
-                        )
-                        : [],
-
-
-                stores:
-                    game.stores
-                        ? game.stores.map(
-                            store => ({
-
-                                name:
-                                    store
-                                        .store
-                                        ?.name ||
-                                    "Unknown",
-
-                                url:
-                                    store.url ||
-                                    null
-
-                            })
-                        )
-                        : []
-
-            }));
+        games =
+            games
+                .slice(0, pageSize)
+                .map(formatGame);
 
 
         res.json({
 
             count:
-                data.count,
+                data.count || games.length,
 
             next:
-                data.next,
+                data.next || null,
 
             previous:
-                data.previous,
+                data.previous || null,
 
             results:
                 games
-
         });
-
 
     } catch (error) {
 
         console.error(
-            "Erreur serveur:",
+            "Games API error:",
             error
         );
 
         res.status(500).json({
 
             error:
-                "Erreur interne du serveur",
-
-            message:
-                error.message
-
+                "Impossible de récupérer les jeux."
         });
-
     }
-
 });
 
 
@@ -282,168 +448,114 @@ app.get("/api/games", async (req, res) => {
 // GAME DETAILS
 // ============================================================
 
-app.get(
-    "/api/games/:id",
-    async (req, res) => {
+app.get("/api/games/:id", async (req, res) => {
 
-        try {
+    try {
 
-            const { id } =
-                req.params;
+        if (!RAWG_API_KEY) {
 
-
-            const url =
-                `https://api.rawg.io/api/games/${encodeURIComponent(id)}?key=${RAWG_API_KEY}`;
-
-
-            const response =
-                await fetch(url);
-
-
-            if (!response.ok) {
-
-                return res
-                    .status(response.status)
-                    .json({
-
-                        error:
-                            "Jeu introuvable"
-
-                    });
-            }
-
-
-            const game =
-                await response.json();
-
-
-            res.json({
-
-                id:
-                    game.id,
-
-                name:
-                    game.name,
-
-                slug:
-                    game.slug,
-
-                description:
-                    game.description_raw ||
-                    "",
-
-                cover:
-                    game.background_image ||
-                    null,
-
-                releaseDate:
-                    game.released ||
-                    null,
-
-                rating:
-                    game.rating ||
-                    0,
-
-                ratingsCount:
-                    game.ratings_count ||
-                    0,
-
-
-                genres:
-                    game.genres
-                        ? game.genres.map(
-                            genre =>
-                                genre.name
-                        )
-                        : [],
-
-
-                developers:
-                    game.developers
-                        ? game.developers.map(
-                            developer =>
-                                developer.name
-                        )
-                        : [],
-
-
-                publishers:
-                    game.publishers
-                        ? game.publishers.map(
-                            publisher =>
-                                publisher.name
-                        )
-                        : [],
-
-
-                platforms:
-                    game.platforms
-                        ? game.platforms.map(
-                            platform => ({
-
-                                name:
-                                    platform
-                                        .platform
-                                        ?.name ||
-                                    "Unknown",
-
-                                requirements:
-                                    platform
-                                        .requirements ||
-                                    null
-
-                            })
-                        )
-                        : [],
-
-
-                stores:
-                    game.stores
-                        ? game.stores.map(
-                            store => ({
-
-                                name:
-                                    store
-                                        .store
-                                        ?.name ||
-                                    "Unknown",
-
-                                url:
-                                    store.url ||
-                                    null
-
-                            })
-                        )
-                        : []
-
+            return res.status(500).json({
+                error: "RAWG_API_KEY manquante."
             });
-
-
-        } catch (error) {
-
-            console.error(
-                "Erreur détail:",
-                error
-            );
-
-            res.status(500).json({
-
-                error:
-                    "Erreur interne du serveur",
-
-                message:
-                    error.message
-
-            });
-
         }
 
+
+        const id =
+            encodeURIComponent(
+                req.params.id
+            );
+
+
+        const url =
+            `https://api.rawg.io/api/games/${id}?key=${encodeURIComponent(
+                RAWG_API_KEY
+            )}`;
+
+
+        const response =
+            await fetch(url);
+
+
+        if (!response.ok) {
+
+            return res.status(
+                response.status
+            ).json({
+
+                error:
+                    "Jeu introuvable."
+            });
+        }
+
+
+        const game =
+            await response.json();
+
+
+        res.json({
+
+            id:
+                game.id,
+
+            name:
+                game.name,
+
+            cover:
+                game.background_image ||
+                null,
+
+            releaseDate:
+                game.released ||
+                null,
+
+            rating:
+                game.rating ||
+                0,
+
+            ratingsCount:
+                game.ratings_count ||
+                0,
+
+            genres:
+                Array.isArray(game.genres)
+                    ? game.genres.map(
+                        genre =>
+                            genre.name
+                    )
+                    : [],
+
+            description:
+                game.description_raw ||
+                game.description ||
+                "Aucune description disponible.",
+
+            platforms:
+                Array.isArray(game.platforms)
+                    ? game.platforms.map(
+                        platform =>
+                            platform.platform?.name
+                    ).filter(Boolean)
+                    : []
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Game details error:",
+            error
+        );
+
+        res.status(500).json({
+
+            error:
+                "Impossible de charger le jeu."
+        });
     }
-);
+});
 
 
 // ============================================================
-// SERVER
+// START SERVER
 // ============================================================
 
 app.listen(
@@ -452,28 +564,7 @@ app.listen(
     () => {
 
         console.log(
-            "================================="
+            `CanIRun lancé sur le port ${PORT}`
         );
-
-        console.log(
-            "🎮 CanIRun"
-        );
-
-        console.log(
-            "================================="
-        );
-
-        console.log(
-            `🚀 Port : ${PORT}`
-        );
-
-        console.log(
-            "🌐 Source : RAWG"
-        );
-
-        console.log(
-            "================================="
-        );
-
     }
 );

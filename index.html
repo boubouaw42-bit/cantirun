@@ -1,209 +1,268 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>CanIRun - Can I Run It?</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet" href="style.css">
+    <title>
+        CanIRun - Est-ce que mon PC peut faire tourner ce jeu ?
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
 </head>
+
 
 <body>
 
-<header class="header">
-    <div class="container header-content">
 
-        <a href="/" class="logo">
-            <span class="logo-icon">🎮</span>
-            <span>CanIRun</span>
-        </a>
+<header>
 
-        <nav class="nav">
-            <a href="#search">Jeux</a>
-            <a href="#pc">Mon PC</a>
+    <div class="header-inner">
+
+        <div class="logo">
+            CanIRun
+        </div>
+
+
+        <nav>
+
+            <a href="#games">
+                Jeux
+            </a>
+
+            <a href="#pc">
+                Mon PC
+            </a>
+
         </nav>
 
     </div>
+
 </header>
+
+
+<section class="hero">
+
+    <h1>
+        Can <span>I</span> Run?
+    </h1>
+
+
+    <p>
+        Cherche un jeu et découvre combien de FPS
+        ton PC pourrait obtenir.
+    </p>
+
+
+    <div class="search-wrapper">
+
+        <div class="search-box">
+
+            <input
+                id="searchInput"
+                type="text"
+                autocomplete="off"
+                placeholder="Ex : FC, GTA, Call of Duty, Minecraft..."
+            >
+
+
+            <button
+                id="searchButton"
+                type="button"
+            >
+                Rechercher
+            </button>
+
+        </div>
+
+
+        <div
+            id="searchSuggestions"
+            class="search-suggestions hidden"
+        ></div>
+
+    </div>
+
+
+    <div id="searchStatus"></div>
+
+</section>
 
 
 <main>
 
-    <!-- HERO -->
-    <section class="hero" id="search">
 
-        <div class="container hero-content">
+    <!-- ======================================================
+         GAMES
+         ====================================================== -->
 
-            <div class="hero-badge">
-                🎮 Vérifie si ton PC peut faire tourner un jeu
-            </div>
+    <section id="games">
 
-            <h1>
-                Can I Run <span>It?</span>
-            </h1>
+        <div class="section-title">
 
-            <p class="hero-description">
-                Recherche un jeu et découvre rapidement s'il peut tourner
-                sur ton ordinateur.
+            <h2>
+                🎮 Jeux populaires
+            </h2>
+
+            <p>
+                Recherche un jeu pour voir sa compatibilité.
             </p>
 
+        </div>
 
-            <div class="search-wrapper">
 
-                <div class="search-box">
+        <div
+            id="gameResults"
+            class="game-grid"
+        >
 
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="Rechercher un jeu..."
-                        autocomplete="off"
-                    >
+            <div class="loading">
+                🎮 Chargement des jeux...
+            </div>
 
-                    <button id="searchButton" type="button">
-                        🔍 Rechercher
-                    </button>
+        </div>
 
+    </section>
+
+
+    <!-- ======================================================
+         PC
+         ====================================================== -->
+
+    <section
+        id="pc"
+        class="pc-section"
+    >
+
+        <div class="section-title">
+
+            <h2>
+                🖥️ Mon PC
+            </h2>
+
+            <p id="pcStatus">
+                Analyse ton PC pour obtenir une estimation
+                personnalisée.
+            </p>
+
+        </div>
+
+
+        <button
+            id="detectPCButton"
+            class="detect-pc-button"
+            type="button"
+        >
+            🔍 Analyser mon PC
+        </button>
+
+
+        <div
+            id="pcInfo"
+            class="pc-info hidden"
+        >
+
+            <div class="pc-card">
+
+                <div class="pc-card-label">
+                    GPU
                 </div>
 
                 <div
-                    id="searchSuggestions"
-                    class="search-suggestions hidden"
-                ></div>
-
-            </div>
-
-            <div id="searchStatus" class="search-status"></div>
-
-        </div>
-
-    </section>
-
-
-    <!-- RESULTS -->
-    <section class="section" id="results">
-
-        <div class="container">
-
-            <div class="section-header">
-                <div>
-                    <span class="section-kicker">CATALOGUE</span>
-                    <h2>Jeux populaires</h2>
-                </div>
-            </div>
-
-            <div id="gameResults" class="game-grid"></div>
-
-        </div>
-
-    </section>
-
-
-    <!-- PC DETECTION -->
-    <section class="section pc-section" id="pc">
-
-        <div class="container">
-
-            <div class="section-header">
-
-                <div>
-                    <span class="section-kicker">CONFIGURATION</span>
-
-                    <h2>🖥️ Mon PC</h2>
-
-                    <p>
-                        Analyse les informations que ton navigateur peut
-                        récupérer sur ton ordinateur.
-                    </p>
+                    id="pcGPU"
+                    class="pc-card-value"
+                >
+                    -
                 </div>
 
             </div>
 
 
-            <button
-                id="detectPCButton"
-                class="primary-button"
-                type="button"
-            >
-                🔍 Analyser mon PC
-            </button>
+            <div class="pc-card">
 
-
-            <div
-                id="pcStatus"
-                class="pc-status"
-                aria-live="polite"
-            ></div>
-
-
-            <div
-                id="pcInfo"
-                class="pc-info hidden"
-            >
-
-                <div class="pc-card">
-
-                    <span class="pc-label">🎮 GPU</span>
-
-                    <strong id="pcGPU">
-                        Non détecté
-                    </strong>
-
+                <div class="pc-card-label">
+                    RAM
                 </div>
 
-
-                <div class="pc-card">
-
-                    <span class="pc-label">🧠 RAM</span>
-
-                    <strong id="pcRAM">
-                        Non détectée
-                    </strong>
-
+                <div
+                    id="pcRAM"
+                    class="pc-card-value"
+                >
+                    -
                 </div>
 
+            </div>
 
-                <div class="pc-card">
 
-                    <span class="pc-label">⚙️ CPU</span>
+            <div class="pc-card">
 
-                    <strong id="pcCPU">
-                        Non détecté
-                    </strong>
-
+                <div class="pc-card-label">
+                    CPU
                 </div>
 
-
-                <div class="pc-card">
-
-                    <span class="pc-label">🌐 Navigateur</span>
-
-                    <strong id="pcBrowser">
-                        Non détecté
-                    </strong>
-
+                <div
+                    id="pcCPU"
+                    class="pc-card-value"
+                >
+                    -
                 </div>
 
+            </div>
 
-                <div class="pc-card">
 
-                    <span class="pc-label">📺 Écran</span>
+            <div class="pc-card">
 
-                    <strong id="pcScreen">
-                        Non détecté
-                    </strong>
-
+                <div class="pc-card-label">
+                    Navigateur
                 </div>
 
+                <div
+                    id="pcBrowser"
+                    class="pc-card-value"
+                >
+                    -
+                </div>
 
-                <div class="pc-card">
+            </div>
 
-                    <span class="pc-label">💻 Système</span>
 
-                    <strong id="pcOS">
-                        Non détecté
-                    </strong>
+            <div class="pc-card">
 
+                <div class="pc-card-label">
+                    Écran
+                </div>
+
+                <div
+                    id="pcScreen"
+                    class="pc-card-value"
+                >
+                    -
+                </div>
+
+            </div>
+
+
+            <div class="pc-card">
+
+                <div class="pc-card-label">
+                    Système
+                </div>
+
+                <div
+                    id="pcOS"
+                    class="pc-card-value"
+                >
+                    -
                 </div>
 
             </div>
@@ -213,49 +272,34 @@
     </section>
 
 
-    <!-- GAME DETAIL -->
+    <!-- ======================================================
+         GAME DETAIL
+         ====================================================== -->
+
     <section
-        class="section detail-section hidden"
         id="gameDetailSection"
+        class="game-detail-section hidden"
     >
 
-        <div class="container">
+        <button
+            id="backButton"
+            class="back-button"
+            type="button"
+        >
+            ← Retour aux jeux
+        </button>
 
-            <button
-                id="backButton"
-                class="back-button"
-                type="button"
-            >
-                ← Retour
-            </button>
 
-            <div id="gameDetail"></div>
-
-        </div>
+        <div id="gameDetail"></div>
 
     </section>
 
+
 </main>
-
-
-<footer class="footer">
-
-    <div class="container">
-
-        <p>
-            🎮 CanIRun — Vérifie la compatibilité de tes jeux.
-        </p>
-
-        <p class="footer-small">
-            Les estimations de performances sont indicatives.
-        </p>
-
-    </div>
-
-</footer>
 
 
 <script src="script.js"></script>
 
 </body>
+
 </html>

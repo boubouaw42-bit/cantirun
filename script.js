@@ -50,6 +50,7 @@ const GPU_SCORES = {
 // ============================================================
 
 const VERY_HEAVY_GAMES = [
+
     "cyberpunk 2077",
     "elden ring",
     "elden ring nightreign",
@@ -65,7 +66,9 @@ const VERY_HEAVY_GAMES = [
     "forza horizon 5"
 ];
 
+
 const MEDIUM_GAMES = [
+
     "grand theft auto v",
     "grand theft auto iv",
     "batman: arkham knight",
@@ -79,7 +82,9 @@ const MEDIUM_GAMES = [
     "resident evil 4"
 ];
 
+
 const LIGHT_GAMES = [
+
     "minecraft",
     "roblox",
     "terraria",
@@ -138,7 +143,10 @@ const backButton =
 
 function escapeHTML(value) {
 
-    if (value === null || value === undefined) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
         return "";
     }
 
@@ -157,7 +165,8 @@ function getYear(date) {
         return "Date inconnue";
     }
 
-    const year = new Date(date).getFullYear();
+    const year =
+        new Date(date).getFullYear();
 
     return Number.isNaN(year)
         ? "Date inconnue"
@@ -165,118 +174,210 @@ function getYear(date) {
 }
 
 
+// ============================================================
+// GPU
+// ============================================================
+
 function getGPUScore(gpuName) {
 
     if (!gpuName) {
         return 150;
     }
 
-    const gpu = gpuName.toLowerCase();
+    const gpu =
+        gpuName.toLowerCase();
 
-    for (const [name, score] of Object.entries(GPU_SCORES)) {
+
+    for (
+        const [name, score]
+        of Object.entries(GPU_SCORES)
+    ) {
 
         if (gpu.includes(name)) {
             return score;
         }
     }
 
-    if (gpu.includes("intel") && gpu.includes("graphics")) {
+
+    if (
+        gpu.includes("intel") &&
+        gpu.includes("graphics")
+    ) {
         return 100;
     }
 
-    if (gpu.includes("amd") || gpu.includes("radeon")) {
+
+    if (
+        gpu.includes("amd") ||
+        gpu.includes("radeon")
+    ) {
         return 250;
     }
+
 
     if (gpu.includes("nvidia")) {
         return 400;
     }
 
+
     return 150;
 }
 
 
+// ============================================================
+// GAME DIFFICULTY
+// ============================================================
+
 function getGameDifficulty(gameName) {
 
-    const name = gameName.toLowerCase();
+    const name =
+        gameName.toLowerCase();
+
 
     if (
-        VERY_HEAVY_GAMES.some(game =>
-            name.includes(game)
+        VERY_HEAVY_GAMES.some(
+            game =>
+                name.includes(game)
         )
     ) {
         return "very-heavy";
     }
 
+
     if (
-        MEDIUM_GAMES.some(game =>
-            name.includes(game)
+        MEDIUM_GAMES.some(
+            game =>
+                name.includes(game)
         )
     ) {
         return "medium";
     }
 
+
     if (
-        LIGHT_GAMES.some(game =>
-            name.includes(game)
+        LIGHT_GAMES.some(
+            game =>
+                name.includes(game)
         )
     ) {
         return "light";
     }
 
+
     return "medium";
 }
 
 
-function calculateCompatibility(gameName, gpuName, ramGB) {
+// ============================================================
+// FPS ESTIMATION
+// ============================================================
 
-    const gpuScore = getGPUScore(gpuName);
+function calculateFPS(
+    gameName,
+    gpuName,
+    ramGB
+) {
+
+    const gpuScore =
+        getGPUScore(gpuName);
+
 
     const difficulty =
         getGameDifficulty(gameName);
 
-    let requiredScore;
 
-    if (difficulty === "very-heavy") {
-        requiredScore = 700;
-    } else if (difficulty === "medium") {
-        requiredScore = 260;
+    let baseFPS;
+
+
+    if (
+        difficulty === "light"
+    ) {
+
+        baseFPS = 70;
+
+    } else if (
+        difficulty === "medium"
+    ) {
+
+        baseFPS = 35;
+
     } else {
-        requiredScore = 70;
+
+        baseFPS = 15;
     }
 
-    let score =
-        (gpuScore / requiredScore) * 100;
 
-    if (ramGB && ramGB < 8) {
-        score -= 15;
+    let fps =
+        baseFPS *
+        (gpuScore / 100);
+
+
+    // RAM
+    if (ramGB) {
+
+        if (ramGB < 4) {
+
+            fps *= 0.65;
+
+        } else if (ramGB < 8) {
+
+            fps *= 0.85;
+        }
     }
 
-    score = Math.max(
-        0,
-        Math.min(100, score)
-    );
 
-    if (score >= 80) {
-        return {
-            score,
-            label: "🟢 Probablement jouable",
-            className: "good"
-        };
+    fps =
+        Math.max(
+            2,
+            Math.min(
+                240,
+                fps
+            )
+        );
+
+
+    fps =
+        Math.round(fps);
+
+
+    let label;
+    let className;
+
+
+    if (fps >= 60) {
+
+        label = "🟢 Très jouable";
+        className = "good";
+
+    } else if (fps >= 40) {
+
+        label = "🟢 Jouable";
+        className = "good";
+
+    } else if (fps >= 30) {
+
+        label = "🟡 Jouable avec compromis";
+        className = "medium";
+
+    } else if (fps >= 20) {
+
+        label = "🟠 Limite";
+        className = "medium";
+
+    } else {
+
+        label = "🔴 Très difficile";
+        className = "bad";
     }
 
-    if (score >= 45) {
-        return {
-            score,
-            label: "🟡 Jouable avec compromis",
-            className: "medium"
-        };
-    }
 
     return {
-        score,
-        label: "🔴 Très difficile",
-        className: "bad"
+
+        fps,
+
+        label,
+
+        className
     };
 }
 
@@ -287,32 +388,43 @@ function calculateCompatibility(gameName, gpuName, ramGB) {
 
 let searchTimer = null;
 
+
 function setupSearchSuggestions() {
 
     if (!searchInput) {
         return;
     }
 
+
     searchInput.addEventListener(
         "input",
         () => {
 
-            clearTimeout(searchTimer);
+            clearTimeout(
+                searchTimer
+            );
+
 
             const query =
                 searchInput.value.trim();
 
-            if (query.length < 2) {
+
+            if (query.length < 1) {
 
                 hideSuggestions();
 
                 return;
             }
 
-            searchTimer = setTimeout(
-                () => loadSuggestions(query),
-                350
-            );
+
+            searchTimer =
+                setTimeout(
+                    () =>
+                        loadSuggestions(
+                            query
+                        ),
+                    300
+                );
         }
     );
 
@@ -322,9 +434,12 @@ function setupSearchSuggestions() {
         event => {
 
             if (
-                !searchSuggestions.contains(event.target) &&
+                !searchSuggestions.contains(
+                    event.target
+                ) &&
                 event.target !== searchInput
             ) {
+
                 hideSuggestions();
             }
         }
@@ -338,18 +453,26 @@ async function loadSuggestions(query) {
 
         const response =
             await fetch(
-                `${API_URL}/games?search=${encodeURIComponent(query)}&page_size=6`
+                `${API_URL}/games?search=${encodeURIComponent(
+                    query
+                )}&page_size=6`
             );
 
+
         if (!response.ok) {
-            throw new Error("Erreur API");
+            throw new Error(
+                "Erreur API"
+            );
         }
+
 
         const data =
             await response.json();
 
+
         const games =
             data.results || [];
+
 
         if (!games.length) {
 
@@ -361,24 +484,31 @@ async function loadSuggestions(query) {
                 </div>
             `;
 
-            searchSuggestions.classList.remove("hidden");
+            searchSuggestions
+                .classList
+                .remove("hidden");
 
             return;
         }
 
 
         searchSuggestions.innerHTML =
-            games.map(game => `
+            games.map(
+                game => `
 
                 <button
                     type="button"
                     class="suggestion"
-                    data-game-id="${escapeHTML(game.id)}"
+                    data-game-id="${escapeHTML(
+                        game.id
+                    )}"
                 >
 
                     <img
                         class="suggestion-cover"
-                        src="${escapeHTML(game.cover || "")}"
+                        src="${escapeHTML(
+                            game.cover || ""
+                        )}"
                         alt=""
                         loading="lazy"
                     >
@@ -386,16 +516,24 @@ async function loadSuggestions(query) {
                     <div class="suggestion-info">
 
                         <div class="suggestion-name">
-                            ${escapeHTML(game.name)}
+                            ${escapeHTML(
+                                game.name
+                            )}
                         </div>
 
                         <div class="suggestion-meta">
 
-                            ${escapeHTML(getYear(game.releaseDate))}
+                            ${escapeHTML(
+                                getYear(
+                                    game.releaseDate
+                                )
+                            )}
 
                             ${
                                 game.rating
-                                    ? ` • <span class="suggestion-rating">★ ${Number(game.rating).toFixed(1)}</span>`
+                                    ? ` • ★ ${Number(
+                                        game.rating
+                                    ).toFixed(1)}`
                                     : ""
                             }
 
@@ -405,11 +543,14 @@ async function loadSuggestions(query) {
 
                 </button>
 
-            `).join("");
+            `
+            ).join("");
 
 
         searchSuggestions
-            .querySelectorAll(".suggestion[data-game-id]")
+            .querySelectorAll(
+                ".suggestion[data-game-id]"
+            )
             .forEach(button => {
 
                 button.addEventListener(
@@ -419,12 +560,16 @@ async function loadSuggestions(query) {
                         const id =
                             button.dataset.gameId;
 
+
                         const selected =
                             games.find(
                                 game =>
-                                    String(game.id) ===
+                                    String(
+                                        game.id
+                                    ) ===
                                     String(id)
                             );
+
 
                         if (selected) {
 
@@ -432,9 +577,12 @@ async function loadSuggestions(query) {
                                 selected.name;
                         }
 
+
                         hideSuggestions();
 
-                        loadGameDetails(id);
+                        loadGameDetails(
+                            id
+                        );
                     }
                 );
             });
@@ -459,7 +607,9 @@ function hideSuggestions() {
         return;
     }
 
-    searchSuggestions.classList.add("hidden");
+    searchSuggestions
+        .classList
+        .add("hidden");
 }
 
 
@@ -472,6 +622,7 @@ async function searchGames() {
     const query =
         searchInput.value.trim();
 
+
     if (!query) {
 
         searchStatus.textContent =
@@ -480,33 +631,47 @@ async function searchGames() {
         return;
     }
 
+
     hideSuggestions();
 
+
     searchStatus.textContent =
-        "Recherche en cours...";
+        "Recherche intelligente en cours...";
+
 
     gameResults.innerHTML =
-        `<div class="loading">🔍 Recherche...</div>`;
+        `<div class="loading">
+            🔍 Recherche...
+        </div>`;
 
 
     try {
 
         const response =
             await fetch(
-                `${API_URL}/games?search=${encodeURIComponent(query)}&page_size=20`
+                `${API_URL}/games?search=${encodeURIComponent(
+                    query
+                )}&page_size=20`
             );
 
+
         if (!response.ok) {
-            throw new Error("Erreur API");
+            throw new Error(
+                "Erreur API"
+            );
         }
+
 
         const data =
             await response.json();
 
+
         const games =
             data.results || [];
 
+
         renderGames(games);
+
 
         searchStatus.textContent =
             `${data.count || games.length} résultat(s) trouvé(s).`;
@@ -515,8 +680,10 @@ async function searchGames() {
 
         console.error(error);
 
+
         searchStatus.textContent =
             "❌ Impossible de contacter CanIRun.";
+
 
         gameResults.innerHTML = `
             <div class="empty">
@@ -546,39 +713,57 @@ function renderGames(games) {
 
 
     gameResults.innerHTML =
-        games.map(game => `
+        games.map(
+            game => `
 
             <article class="game-card">
 
                 <img
                     class="game-cover"
-                    src="${escapeHTML(game.cover || "")}"
-                    alt="${escapeHTML(game.name)}"
+                    src="${escapeHTML(
+                        game.cover || ""
+                    )}"
+                    alt="${escapeHTML(
+                        game.name
+                    )}"
                     loading="lazy"
                 >
+
 
                 <div class="game-card-content">
 
                     <div class="game-card-title">
-                        ${escapeHTML(game.name)}
+                        ${escapeHTML(
+                            game.name
+                        )}
                     </div>
+
 
                     <div class="game-card-meta">
 
-                        ${escapeHTML(getYear(game.releaseDate))}
+                        ${escapeHTML(
+                            getYear(
+                                game.releaseDate
+                            )
+                        )}
 
                         ${
                             game.rating
-                                ? ` • ★ ${Number(game.rating).toFixed(1)}`
+                                ? ` • ★ ${Number(
+                                    game.rating
+                                ).toFixed(1)}`
                                 : ""
                         }
 
                     </div>
 
+
                     <button
                         class="game-card-button"
                         type="button"
-                        data-game-id="${escapeHTML(game.id)}"
+                        data-game-id="${escapeHTML(
+                            game.id
+                        )}"
                     >
                         Vérifier mon PC
                     </button>
@@ -587,16 +772,20 @@ function renderGames(games) {
 
             </article>
 
-        `).join("");
+        `
+        ).join("");
 
 
     gameResults
-        .querySelectorAll("[data-game-id]")
+        .querySelectorAll(
+            "[data-game-id]"
+        )
         .forEach(button => {
 
             button.addEventListener(
                 "click",
                 () => {
+
                     loadGameDetails(
                         button.dataset.gameId
                     );
@@ -618,8 +807,12 @@ async function loadGameDetails(id) {
             .classList
             .remove("hidden");
 
+
         gameDetail.innerHTML =
-            `<div class="loading">Chargement du jeu...</div>`;
+            `<div class="loading">
+                Chargement du jeu...
+            </div>`;
+
 
         gameDetailSection.scrollIntoView({
             behavior: "smooth"
@@ -628,12 +821,18 @@ async function loadGameDetails(id) {
 
         const response =
             await fetch(
-                `${API_URL}/games/${encodeURIComponent(id)}`
+                `${API_URL}/games/${encodeURIComponent(
+                    id
+                )}`
             );
 
+
         if (!response.ok) {
-            throw new Error("Jeu introuvable");
+            throw new Error(
+                "Jeu introuvable"
+            );
         }
+
 
         const game =
             await response.json();
@@ -642,8 +841,9 @@ async function loadGameDetails(id) {
         const pc =
             getDetectedPC();
 
-        const compatibility =
-            calculateCompatibility(
+
+        const fpsEstimate =
+            calculateFPS(
                 game.name,
                 pc.gpu,
                 pc.ram
@@ -658,8 +858,12 @@ async function loadGameDetails(id) {
 
                     <img
                         class="detail-cover"
-                        src="${escapeHTML(game.cover || "")}"
-                        alt="${escapeHTML(game.name)}"
+                        src="${escapeHTML(
+                            game.cover || ""
+                        )}"
+                        alt="${escapeHTML(
+                            game.name
+                        )}"
                     >
 
                 </div>
@@ -668,25 +872,39 @@ async function loadGameDetails(id) {
                 <div class="detail-content">
 
                     <h2>
-                        ${escapeHTML(game.name)}
+                        ${escapeHTML(
+                            game.name
+                        )}
                     </h2>
 
 
                     <div class="detail-meta">
 
                         <span class="tag">
-                            ${escapeHTML(getYear(game.releaseDate))}
+                            ${escapeHTML(
+                                getYear(
+                                    game.releaseDate
+                                )
+                            )}
                         </span>
 
+
                         <span class="tag">
-                            ★ ${Number(game.rating || 0).toFixed(1)}
+                            ★ ${Number(
+                                game.rating || 0
+                            ).toFixed(1)}
                         </span>
+
 
                         ${
                             game.genres
                                 ?.map(
                                     genre =>
-                                        `<span class="tag">${escapeHTML(genre)}</span>`
+                                        `<span class="tag">
+                                            ${escapeHTML(
+                                                genre
+                                            )}
+                                        </span>`
                                 )
                                 .join("")
                             || ""
@@ -696,30 +914,56 @@ async function loadGameDetails(id) {
 
 
                     <p class="detail-description">
+
                         ${
                             escapeHTML(
                                 game.description ||
                                 "Aucune description disponible."
                             )
                         }
+
                     </p>
 
 
                     <div class="compatibility">
 
                         <div class="compatibility-title">
-                            Compatibilité avec ton PC
+                            Performances estimées
                         </div>
+
 
                         <div
-                            class="compatibility-result ${compatibility.className}"
+                            class="compatibility-result ${fpsEstimate.className}"
                         >
-                            ${compatibility.label}
+                            ${fpsEstimate.label}
                         </div>
 
+
+                        <div class="fps-result">
+
+                            <strong>
+                                ${fpsEstimate.fps}
+                            </strong>
+
+                            <span>
+                                FPS estimés
+                            </span>
+
+                        </div>
+
+
                         <p class="detail-description">
-                            Score estimé :
-                            ${Math.round(compatibility.score)}/100
+
+                            Estimation basée sur le
+                            GPU, la RAM et la difficulté
+                            du jeu.
+
+                            <br>
+
+                            Les performances réelles
+                            peuvent varier selon les
+                            réglages graphiques.
+
                         </p>
 
                     </div>
@@ -732,6 +976,7 @@ async function loadGameDetails(id) {
     } catch (error) {
 
         console.error(error);
+
 
         gameDetail.innerHTML = `
             <div class="empty">
@@ -747,11 +992,17 @@ async function loadGameDetails(id) {
 // ============================================================
 
 let detectedPC = {
+
     gpu: null,
+
     ram: null,
+
     cpu: null,
+
     browser: null,
+
     screen: null,
+
     os: null
 };
 
@@ -761,27 +1012,37 @@ function detectGPU() {
     try {
 
         const canvas =
-            document.createElement("canvas");
+            document.createElement(
+                "canvas"
+            );
+
 
         const gl =
             canvas.getContext("webgl") ||
-            canvas.getContext("experimental-webgl");
+            canvas.getContext(
+                "experimental-webgl"
+            );
+
 
         if (!gl) {
             return "Non disponible";
         }
+
 
         const debugInfo =
             gl.getExtension(
                 "WEBGL_debug_renderer_info"
             );
 
+
         if (debugInfo) {
 
             return gl.getParameter(
-                debugInfo.UNMASKED_RENDERER_WEBGL
+                debugInfo
+                    .UNMASKED_RENDERER_WEBGL
             );
         }
+
 
         return gl.getParameter(
             gl.RENDERER
@@ -804,21 +1065,34 @@ function detectBrowser() {
     const userAgent =
         navigator.userAgent;
 
-    if (userAgent.includes("Edg/")) {
+
+    if (
+        userAgent.includes("Edg/")
+    ) {
         return "Microsoft Edge";
     }
 
-    if (userAgent.includes("Chrome/")) {
+
+    if (
+        userAgent.includes("Chrome/")
+    ) {
         return "Google Chrome";
     }
 
-    if (userAgent.includes("Firefox/")) {
+
+    if (
+        userAgent.includes("Firefox/")
+    ) {
         return "Mozilla Firefox";
     }
 
-    if (userAgent.includes("Safari/")) {
+
+    if (
+        userAgent.includes("Safari/")
+    ) {
         return "Safari";
     }
+
 
     return "Navigateur inconnu";
 }
@@ -829,13 +1103,20 @@ function detectOS() {
     const userAgent =
         navigator.userAgent;
 
-    if (userAgent.includes("Windows")) {
+
+    if (
+        userAgent.includes("Windows")
+    ) {
         return "Windows";
     }
 
-    if (userAgent.includes("Android")) {
+
+    if (
+        userAgent.includes("Android")
+    ) {
         return "Android";
     }
+
 
     if (
         userAgent.includes("iPhone") ||
@@ -844,13 +1125,20 @@ function detectOS() {
         return "iOS";
     }
 
-    if (userAgent.includes("Mac OS")) {
+
+    if (
+        userAgent.includes("Mac OS")
+    ) {
         return "macOS";
     }
 
-    if (userAgent.includes("Linux")) {
+
+    if (
+        userAgent.includes("Linux")
+    ) {
         return "Linux";
     }
+
 
     return "Système inconnu";
 }
@@ -861,56 +1149,84 @@ function detectPC() {
     const gpu =
         detectGPU();
 
+
     const ram =
         navigator.deviceMemory
             ? navigator.deviceMemory
             : null;
+
 
     const cpu =
         navigator.hardwareConcurrency
             ? navigator.hardwareConcurrency
             : null;
 
+
     const browser =
         detectBrowser();
 
+
     const screen =
         `${window.screen.width} × ${window.screen.height}`;
+
 
     const os =
         detectOS();
 
 
     detectedPC = {
+
         gpu,
+
         ram,
+
         cpu,
+
         browser,
+
         screen,
+
         os
     };
 
 
-    document.getElementById("pcGPU").textContent =
+    document.getElementById(
+        "pcGPU"
+    ).textContent =
         gpu;
 
-    document.getElementById("pcRAM").textContent =
+
+    document.getElementById(
+        "pcRAM"
+    ).textContent =
         ram
             ? `${ram} GB environ`
             : "Non disponible";
 
-    document.getElementById("pcCPU").textContent =
+
+    document.getElementById(
+        "pcCPU"
+    ).textContent =
         cpu
             ? `${cpu} cœurs logiques`
             : "Non disponible";
 
-    document.getElementById("pcBrowser").textContent =
+
+    document.getElementById(
+        "pcBrowser"
+    ).textContent =
         browser;
 
-    document.getElementById("pcScreen").textContent =
+
+    document.getElementById(
+        "pcScreen"
+    ).textContent =
         screen;
 
-    document.getElementById("pcOS").textContent =
+
+    document.getElementById(
+        "pcOS"
+    ).textContent =
         os;
 
 
@@ -932,6 +1248,7 @@ function getDetectedPC() {
     if (!detectedPC.gpu) {
         detectPC();
     }
+
 
     return detectedPC;
 }
@@ -956,7 +1273,10 @@ if (searchInput) {
         "keydown",
         event => {
 
-            if (event.key === "Enter") {
+            if (
+                event.key === "Enter"
+            ) {
+
                 searchGames();
             }
         }
@@ -968,6 +1288,7 @@ const detectPCButton =
     document.getElementById(
         "detectPCButton"
     );
+
 
 if (detectPCButton) {
 
@@ -988,8 +1309,11 @@ if (backButton) {
                 .classList
                 .add("hidden");
 
+
             window.scrollTo({
+
                 top: 0,
+
                 behavior: "smooth"
             });
         }
@@ -1006,19 +1330,27 @@ async function loadPopularGames() {
     try {
 
         gameResults.innerHTML =
-            `<div class="loading">🎮 Chargement des jeux...</div>`;
+            `<div class="loading">
+                🎮 Chargement des jeux...
+            </div>`;
+
 
         const response =
             await fetch(
                 `${API_URL}/games?page_size=20`
             );
 
+
         if (!response.ok) {
-            throw new Error("Erreur API");
+            throw new Error(
+                "Erreur API"
+            );
         }
+
 
         const data =
             await response.json();
+
 
         renderGames(
             data.results || []
@@ -1027,6 +1359,7 @@ async function loadPopularGames() {
     } catch (error) {
 
         console.error(error);
+
 
         gameResults.innerHTML = `
             <div class="empty">
