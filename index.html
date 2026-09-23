@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>CanIRun</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <!-- ================= HEADER ================= -->
+
+    <header class="header">
+
+        <div class="logo">
+            Can<span>IRun</span>
+        </div>
+
+        <nav>
+            <a href="#accueil">Accueil</a>
+            <a href="#catalogue">Jeux</a>
+            <a href="#pc">Mon PC</a>
+        </nav>
+
+    </header>
+
+
+    <!-- ================= HERO ================= -->
+
+    <main>
+
+        <section
+            id="accueil"
+            class="hero"
+        >
+
+            <div class="hero-content">
+
+                <h1>
+                    Ton PC peut-il<br>
+                    <span>faire tourner ce jeu ?</span>
+                </h1>
+
+                <p>
+                    Recherche un jeu et découvre instantanément
+                    s'il peut tourner sur ton PC.
+                </p>
+
+
+                <!-- SEARCH -->
+
+                <div class="search-container">
+
+                    <div class="search-box">
+
+                        <span class="search-icon">
+                            🔎
+                        </span>
+
+                        <input
+                            id="searchInput"
+                            type="text"
+                            placeholder="Rechercher un jeu..."
+                            autocomplete="off"
+                        >
+
+                        <button
+                            id="searchButton"
+                            type="button"
+                        >
+                            Rechercher
+                        </button>
+
+                    </div>
+
+
+                    <!-- SUGGESTIONS -->
+
+                    <div
+                        id="searchSuggestions"
+                        class="search-suggestions hidden"
+                    ></div>
+
+
+                    <div
+                        id="searchStatus"
+                        class="search-status"
+                    ></div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= CATALOGUE ================= -->
+
+        <section
+            id="catalogue"
+            class="section"
+        >
+
+            <div class="section-header">
+
+                <div>
+
+                    <h2>
+                        Résultats
+                    </h2>
+
+                    <p>
+                        Les jeux trouvés sur RAWG
+                    </p>
+
+                </div>
+
+                <span
+                    id="resultCount"
+                    class="result-count"
+                >
+                    0 affiché(s)
+                </span>
+
+            </div>
+
+
+            <div
+                id="gameResults"
+                class="game-grid"
+            >
+
+                <div class="empty-state">
+                    🔎 Recherche un jeu pour commencer.
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= MON PC ================= -->
+
+        <section
+            id="pc"
+            class="section pc-section"
+        >
+
+            <div class="section-header">
+
+                <div>
+
+                    <h2>
+                        Mon PC
+                    </h2>
+
+                    <p>
+                        Configuration détectée automatiquement
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="pc-grid">
+
+                <div class="pc-card">
+
+                    <div class="pc-card-icon">
+                        🪟
+                    </div>
+
+                    <div>
+
+                        <span>
+                            Système
+                        </span>
+
+                        <strong id="pcOS">
+                            Détection...
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="pc-card">
+
+                    <div class="pc-card-icon">
+                        ⚙️
+                    </div>
+
+                    <div>
+
+                        <span>
+                            CPU
+                        </span>
+
+                        <strong id="pcCPU">
+                            Détection...
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="pc-card">
+
+                    <div class="pc-card-icon">
+                        🎮
+                    </div>
+
+                    <div>
+
+                        <span>
+                            GPU
+                        </span>
+
+                        <strong id="pcGPU">
+                            Détection...
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="pc-card">
+
+                    <div class="pc-card-icon">
+                        🧠
+                    </div>
+
+                    <div>
+
+                        <span>
+                            RAM
+                        </span>
+
+                        <strong id="pcRAM">
+                            Détection...
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= RESULT ================= -->
+
+        <section
+            id="result"
+            class="section result-section hidden"
+        >
+
+            <button
+                id="backToResults"
+                class="back-button"
+            >
+                ← Retour aux résultats
+            </button>
+
+
+            <div class="result-layout">
+
+                <div class="result-cover-container">
+
+                    <img
+                        id="gameCover"
+                        class="result-cover"
+                        src=""
+                        alt="Jaquette du jeu"
+                    >
+
+                </div>
+
+
+                <div class="result-info">
+
+                    <div
+                        id="compatibilityBadge"
+                        class="compatibility-badge"
+                    >
+                        À analyser
+                    </div>
+
+
+                    <h2 id="gameName">
+                        Jeu
+                    </h2>
+
+
+                    <div
+                        id="gameMeta"
+                        class="game-meta"
+                    >
+                    </div>
+
+
+                    <p
+                        id="gameDescription"
+                        class="game-description"
+                    >
+                    </p>
+
+
+                    <div class="analysis-grid">
+
+                        <div class="analysis-card">
+
+                            <span>
+                                FPS estimés
+                            </span>
+
+                            <strong id="fpsValue">
+                                -- FPS
+                            </strong>
+
+                            <div class="fps-container">
+
+                                <div
+                                    id="fpsBar"
+                                    class="fps-bar"
+                                ></div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="analysis-card">
+
+                            <span>
+                                Réglages
+                            </span>
+
+                            <strong id="settingsValue">
+                                --
+                            </strong>
+
+                        </div>
+
+
+                        <div class="analysis-card">
+
+                            <span>
+                                RAM / système
+                            </span>
+
+                            <strong id="ramRequirement">
+                                --
+                            </strong>
+
+                        </div>
+
+
+                        <div class="analysis-card">
+
+                            <span>
+                                GPU requis
+                            </span>
+
+                            <strong id="gpuRequirement">
+                                --
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="requirements">
+
+                        <div>
+
+                            <span>
+                                Plateformes
+                            </span>
+
+                            <strong id="platformRequirement">
+                                --
+                            </strong>
+
+                        </div>
+
+
+                        <div>
+
+                            <span>
+                                Date de sortie
+                            </span>
+
+                            <strong id="releaseDate">
+                                --
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <a
+                        id="gameStoreLink"
+                        class="store-button"
+                        href="#"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Voir le jeu
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ================= FOOTER ================= -->
+
+    <footer>
+
+        <div class="logo">
+            Can<span>IRun</span>
+        </div>
+
+        <p>
+            Vérifie si ton PC peut faire tourner tes jeux.
+        </p>
+
+    </footer>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
