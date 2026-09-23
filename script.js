@@ -1,25 +1,759 @@
+// ============================================================
+// CanIRun - Frontend
+// ============================================================
+
 const API_URL = "/api";
 
-let currentGames = [];
-let currentGame = null;
 
-let searchTimeout = null;
+// ============================================================
+// GPU SCORES
+// ============================================================
+
+const GPU_SCORES = {
+
+    "hd graphics 4000": 55,
+    "hd graphics 4400": 65,
+    "hd graphics 4600": 75,
+
+    "hd graphics 5000": 80,
+    "hd graphics 510": 85,
+    "hd graphics 515": 90,
+    "hd graphics 615": 100,
+    "hd graphics 620": 120,
+
+    "uhd graphics 600": 130,
+    "uhd graphics 605": 140,
+    "uhd graphics 610": 145,
+    "uhd graphics 620": 150,
+    "uhd graphics 630": 180,
+
+    "gtx 750": 270,
+    "gtx 750 ti": 300,
+    "gtx 950": 380,
+    "gtx 960": 420,
+
+    "gtx 1050": 500,
+    "gtx 1050 ti": 600,
+    "gtx 1060": 750,
+
+    "gtx 1650": 900,
+    "gtx 1660": 1100,
+
+    "rtx 2060": 1300,
+    "rtx 3060": 1800,
+    "rtx 4060": 2400
+};
 
 
-// =====================================================
-// PC DETECTION
-// =====================================================
+// ============================================================
+// GAME CATEGORIES
+// ============================================================
 
-function detectOS() {
+const VERY_HEAVY_GAMES = [
+    "cyberpunk 2077",
+    "elden ring",
+    "elden ring nightreign",
+    "marvel's spider-man remastered",
+    "marvel's spider-man 2",
+    "the last of us part i",
+    "starfield",
+    "red dead redemption 2",
+    "hogwarts legacy",
+    "alan wake 2",
+    "black myth: wukong",
+    "monster hunter wilds",
+    "forza horizon 5"
+];
 
-    const ua = navigator.userAgent;
+const MEDIUM_GAMES = [
+    "grand theft auto v",
+    "grand theft auto iv",
+    "batman: arkham knight",
+    "call of duty: black ops iii",
+    "the witcher 3",
+    "forza horizon 4",
+    "far cry 5",
+    "far cry 6",
+    "resident evil 2",
+    "resident evil 3",
+    "resident evil 4"
+];
 
-    if (ua.includes("Windows")) return "Windows";
-    if (ua.includes("Linux")) return "Linux";
-    if (ua.includes("Mac")) return "macOS";
+const LIGHT_GAMES = [
+    "minecraft",
+    "roblox",
+    "terraria",
+    "stardew valley",
+    "among us",
+    "undertale",
+    "celeste",
+    "limbo",
+    "portal",
+    "portal 2",
+    "half-life",
+    "half-life 2",
+    "team fortress 2",
+    "left 4 dead",
+    "left 4 dead 2",
+    "don't starve",
+    "hollow knight",
+    "cuphead",
+    "dead cells",
+    "candy crush"
+];
 
-    return "Inconnu";
+
+// ============================================================
+// DOM
+// ============================================================
+
+const searchInput =
+    document.getElementById("searchInput");
+
+const searchButton =
+    document.getElementById("searchButton");
+
+const searchSuggestions =
+    document.getElementById("searchSuggestions");
+
+const searchStatus =
+    document.getElementById("searchStatus");
+
+const gameResults =
+    document.getElementById("gameResults");
+
+const gameDetailSection =
+    document.getElementById("gameDetailSection");
+
+const gameDetail =
+    document.getElementById("gameDetail");
+
+const backButton =
+    document.getElementById("backButton");
+
+
+// ============================================================
+// UTILITIES
+// ============================================================
+
+function escapeHTML(value) {
+
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 }
+
+
+function getYear(date) {
+
+    if (!date) {
+        return "Date inconnue";
+    }
+
+    const year = new Date(date).getFullYear();
+
+    return Number.isNaN(year)
+        ? "Date inconnue"
+        : year;
+}
+
+
+function getGPUScore(gpuName) {
+
+    if (!gpuName) {
+        return 150;
+    }
+
+    const gpu = gpuName.toLowerCase();
+
+    for (const [name, score] of Object.entries(GPU_SCORES)) {
+
+        if (gpu.includes(name)) {
+            return score;
+        }
+    }
+
+    if (gpu.includes("intel") && gpu.includes("graphics")) {
+        return 100;
+    }
+
+    if (gpu.includes("amd") || gpu.includes("radeon")) {
+        return 250;
+    }
+
+    if (gpu.includes("nvidia")) {
+        return 400;
+    }
+
+    return 150;
+}
+
+
+function getGameDifficulty(gameName) {
+
+    const name = gameName.toLowerCase();
+
+    if (
+        VERY_HEAVY_GAMES.some(game =>
+            name.includes(game)
+        )
+    ) {
+        return "very-heavy";
+    }
+
+    if (
+        MEDIUM_GAMES.some(game =>
+            name.includes(game)
+        )
+    ) {
+        return "medium";
+    }
+
+    if (
+        LIGHT_GAMES.some(game =>
+            name.includes(game)
+        )
+    ) {
+        return "light";
+    }
+
+    return "medium";
+}
+
+
+function calculateCompatibility(gameName, gpuName, ramGB) {
+
+    const gpuScore = getGPUScore(gpuName);
+
+    const difficulty =
+        getGameDifficulty(gameName);
+
+    let requiredScore;
+
+    if (difficulty === "very-heavy") {
+        requiredScore = 700;
+    } else if (difficulty === "medium") {
+        requiredScore = 260;
+    } else {
+        requiredScore = 70;
+    }
+
+    let score =
+        (gpuScore / requiredScore) * 100;
+
+    if (ramGB && ramGB < 8) {
+        score -= 15;
+    }
+
+    score = Math.max(
+        0,
+        Math.min(100, score)
+    );
+
+    if (score >= 80) {
+        return {
+            score,
+            label: "🟢 Probablement jouable",
+            className: "good"
+        };
+    }
+
+    if (score >= 45) {
+        return {
+            score,
+            label: "🟡 Jouable avec compromis",
+            className: "medium"
+        };
+    }
+
+    return {
+        score,
+        label: "🔴 Très difficile",
+        className: "bad"
+    };
+}
+
+
+// ============================================================
+// SEARCH SUGGESTIONS
+// ============================================================
+
+let searchTimer = null;
+
+function setupSearchSuggestions() {
+
+    if (!searchInput) {
+        return;
+    }
+
+    searchInput.addEventListener(
+        "input",
+        () => {
+
+            clearTimeout(searchTimer);
+
+            const query =
+                searchInput.value.trim();
+
+            if (query.length < 2) {
+
+                hideSuggestions();
+
+                return;
+            }
+
+            searchTimer = setTimeout(
+                () => loadSuggestions(query),
+                350
+            );
+        }
+    );
+
+
+    document.addEventListener(
+        "click",
+        event => {
+
+            if (
+                !searchSuggestions.contains(event.target) &&
+                event.target !== searchInput
+            ) {
+                hideSuggestions();
+            }
+        }
+    );
+}
+
+
+async function loadSuggestions(query) {
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_URL}/games?search=${encodeURIComponent(query)}&page_size=6`
+            );
+
+        if (!response.ok) {
+            throw new Error("Erreur API");
+        }
+
+        const data =
+            await response.json();
+
+        const games =
+            data.results || [];
+
+        if (!games.length) {
+
+            searchSuggestions.innerHTML = `
+                <div class="suggestion">
+                    <div class="suggestion-info">
+                        Aucun jeu trouvé.
+                    </div>
+                </div>
+            `;
+
+            searchSuggestions.classList.remove("hidden");
+
+            return;
+        }
+
+
+        searchSuggestions.innerHTML =
+            games.map(game => `
+
+                <button
+                    type="button"
+                    class="suggestion"
+                    data-game-id="${escapeHTML(game.id)}"
+                >
+
+                    <img
+                        class="suggestion-cover"
+                        src="${escapeHTML(game.cover || "")}"
+                        alt=""
+                        loading="lazy"
+                    >
+
+                    <div class="suggestion-info">
+
+                        <div class="suggestion-name">
+                            ${escapeHTML(game.name)}
+                        </div>
+
+                        <div class="suggestion-meta">
+
+                            ${escapeHTML(getYear(game.releaseDate))}
+
+                            ${
+                                game.rating
+                                    ? ` • <span class="suggestion-rating">★ ${Number(game.rating).toFixed(1)}</span>`
+                                    : ""
+                            }
+
+                        </div>
+
+                    </div>
+
+                </button>
+
+            `).join("");
+
+
+        searchSuggestions
+            .querySelectorAll(".suggestion[data-game-id]")
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        const id =
+                            button.dataset.gameId;
+
+                        const selected =
+                            games.find(
+                                game =>
+                                    String(game.id) ===
+                                    String(id)
+                            );
+
+                        if (selected) {
+
+                            searchInput.value =
+                                selected.name;
+                        }
+
+                        hideSuggestions();
+
+                        loadGameDetails(id);
+                    }
+                );
+            });
+
+
+        searchSuggestions
+            .classList
+            .remove("hidden");
+
+    } catch (error) {
+
+        console.error(error);
+
+        hideSuggestions();
+    }
+}
+
+
+function hideSuggestions() {
+
+    if (!searchSuggestions) {
+        return;
+    }
+
+    searchSuggestions.classList.add("hidden");
+}
+
+
+// ============================================================
+// SEARCH
+// ============================================================
+
+async function searchGames() {
+
+    const query =
+        searchInput.value.trim();
+
+    if (!query) {
+
+        searchStatus.textContent =
+            "Écris le nom d'un jeu.";
+
+        return;
+    }
+
+    hideSuggestions();
+
+    searchStatus.textContent =
+        "Recherche en cours...";
+
+    gameResults.innerHTML =
+        `<div class="loading">🔍 Recherche...</div>`;
+
+
+    try {
+
+        const response =
+            await fetch(
+                `${API_URL}/games?search=${encodeURIComponent(query)}&page_size=20`
+            );
+
+        if (!response.ok) {
+            throw new Error("Erreur API");
+        }
+
+        const data =
+            await response.json();
+
+        const games =
+            data.results || [];
+
+        renderGames(games);
+
+        searchStatus.textContent =
+            `${data.count || games.length} résultat(s) trouvé(s).`;
+
+    } catch (error) {
+
+        console.error(error);
+
+        searchStatus.textContent =
+            "❌ Impossible de contacter CanIRun.";
+
+        gameResults.innerHTML = `
+            <div class="empty">
+                Une erreur est survenue pendant la recherche.
+            </div>
+        `;
+    }
+}
+
+
+// ============================================================
+// RENDER GAME CARDS
+// ============================================================
+
+function renderGames(games) {
+
+    if (!games.length) {
+
+        gameResults.innerHTML = `
+            <div class="empty">
+                Aucun jeu trouvé.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    gameResults.innerHTML =
+        games.map(game => `
+
+            <article class="game-card">
+
+                <img
+                    class="game-cover"
+                    src="${escapeHTML(game.cover || "")}"
+                    alt="${escapeHTML(game.name)}"
+                    loading="lazy"
+                >
+
+                <div class="game-card-content">
+
+                    <div class="game-card-title">
+                        ${escapeHTML(game.name)}
+                    </div>
+
+                    <div class="game-card-meta">
+
+                        ${escapeHTML(getYear(game.releaseDate))}
+
+                        ${
+                            game.rating
+                                ? ` • ★ ${Number(game.rating).toFixed(1)}`
+                                : ""
+                        }
+
+                    </div>
+
+                    <button
+                        class="game-card-button"
+                        type="button"
+                        data-game-id="${escapeHTML(game.id)}"
+                    >
+                        Vérifier mon PC
+                    </button>
+
+                </div>
+
+            </article>
+
+        `).join("");
+
+
+    gameResults
+        .querySelectorAll("[data-game-id]")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+                    loadGameDetails(
+                        button.dataset.gameId
+                    );
+                }
+            );
+        });
+}
+
+
+// ============================================================
+// GAME DETAILS
+// ============================================================
+
+async function loadGameDetails(id) {
+
+    try {
+
+        gameDetailSection
+            .classList
+            .remove("hidden");
+
+        gameDetail.innerHTML =
+            `<div class="loading">Chargement du jeu...</div>`;
+
+        gameDetailSection.scrollIntoView({
+            behavior: "smooth"
+        });
+
+
+        const response =
+            await fetch(
+                `${API_URL}/games/${encodeURIComponent(id)}`
+            );
+
+        if (!response.ok) {
+            throw new Error("Jeu introuvable");
+        }
+
+        const game =
+            await response.json();
+
+
+        const pc =
+            getDetectedPC();
+
+        const compatibility =
+            calculateCompatibility(
+                game.name,
+                pc.gpu,
+                pc.ram
+            );
+
+
+        gameDetail.innerHTML = `
+
+            <div class="detail">
+
+                <div>
+
+                    <img
+                        class="detail-cover"
+                        src="${escapeHTML(game.cover || "")}"
+                        alt="${escapeHTML(game.name)}"
+                    >
+
+                </div>
+
+
+                <div class="detail-content">
+
+                    <h2>
+                        ${escapeHTML(game.name)}
+                    </h2>
+
+
+                    <div class="detail-meta">
+
+                        <span class="tag">
+                            ${escapeHTML(getYear(game.releaseDate))}
+                        </span>
+
+                        <span class="tag">
+                            ★ ${Number(game.rating || 0).toFixed(1)}
+                        </span>
+
+                        ${
+                            game.genres
+                                ?.map(
+                                    genre =>
+                                        `<span class="tag">${escapeHTML(genre)}</span>`
+                                )
+                                .join("")
+                            || ""
+                        }
+
+                    </div>
+
+
+                    <p class="detail-description">
+                        ${
+                            escapeHTML(
+                                game.description ||
+                                "Aucune description disponible."
+                            )
+                        }
+                    </p>
+
+
+                    <div class="compatibility">
+
+                        <div class="compatibility-title">
+                            Compatibilité avec ton PC
+                        </div>
+
+                        <div
+                            class="compatibility-result ${compatibility.className}"
+                        >
+                            ${compatibility.label}
+                        </div>
+
+                        <p class="detail-description">
+                            Score estimé :
+                            ${Math.round(compatibility.score)}/100
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.error(error);
+
+        gameDetail.innerHTML = `
+            <div class="empty">
+                Impossible de charger les informations du jeu.
+            </div>
+        `;
+    }
+}
+
+
+// ============================================================
+// PC DETECTION
+// ============================================================
+
+let detectedPC = {
+    gpu: null,
+    ram: null,
+    cpu: null,
+    browser: null,
+    screen: null,
+    os: null
+};
 
 
 function detectGPU() {
@@ -34,7 +768,7 @@ function detectGPU() {
             canvas.getContext("experimental-webgl");
 
         if (!gl) {
-            return "GPU inconnu";
+            return "Non disponible";
         }
 
         const debugInfo =
@@ -56,1339 +790,253 @@ function detectGPU() {
     } catch (error) {
 
         console.error(
-            "Erreur GPU :",
+            "GPU detection error:",
             error
         );
 
-        return "GPU inconnu";
+        return "Non disponible";
     }
 }
 
 
-function getCurrentRAM() {
+function detectBrowser() {
 
-    return navigator.deviceMemory || 8;
+    const userAgent =
+        navigator.userAgent;
+
+    if (userAgent.includes("Edg/")) {
+        return "Microsoft Edge";
+    }
+
+    if (userAgent.includes("Chrome/")) {
+        return "Google Chrome";
+    }
+
+    if (userAgent.includes("Firefox/")) {
+        return "Mozilla Firefox";
+    }
+
+    if (userAgent.includes("Safari/")) {
+        return "Safari";
+    }
+
+    return "Navigateur inconnu";
+}
+
+
+function detectOS() {
+
+    const userAgent =
+        navigator.userAgent;
+
+    if (userAgent.includes("Windows")) {
+        return "Windows";
+    }
+
+    if (userAgent.includes("Android")) {
+        return "Android";
+    }
+
+    if (
+        userAgent.includes("iPhone") ||
+        userAgent.includes("iPad")
+    ) {
+        return "iOS";
+    }
+
+    if (userAgent.includes("Mac OS")) {
+        return "macOS";
+    }
+
+    if (userAgent.includes("Linux")) {
+        return "Linux";
+    }
+
+    return "Système inconnu";
 }
 
 
 function detectPC() {
 
-    document.getElementById(
-        "pcOS"
-    ).textContent =
+    const gpu =
+        detectGPU();
+
+    const ram =
+        navigator.deviceMemory
+            ? navigator.deviceMemory
+            : null;
+
+    const cpu =
+        navigator.hardwareConcurrency
+            ? navigator.hardwareConcurrency
+            : null;
+
+    const browser =
+        detectBrowser();
+
+    const screen =
+        `${window.screen.width} × ${window.screen.height}`;
+
+    const os =
         detectOS();
 
 
-    document.getElementById(
-        "pcCPU"
-    ).textContent =
-        `${navigator.hardwareConcurrency || 4} threads`;
-
-
-    document.getElementById(
-        "pcGPU"
-    ).textContent =
-        detectGPU();
-
-
-    document.getElementById(
-        "pcRAM"
-    ).textContent =
-        navigator.deviceMemory
-            ? `${navigator.deviceMemory} GB`
-            : "8 GB estimés";
-}
-
-
-// =====================================================
-// GPU
-// =====================================================
-
-const GPU_SCORES = {
-
-    "hd graphics 4000": 55,
-    "hd graphics 4400": 65,
-    "hd graphics 4600": 75,
-    "hd graphics 5000": 80,
-    "hd graphics 510": 85,
-    "hd graphics 515": 90,
-
-    "hd graphics 615": 100,
-
-    "hd graphics 620": 120,
-
-    "uhd graphics 600": 130,
-    "uhd graphics 605": 140,
-    "uhd graphics 610": 145,
-    "uhd graphics 620": 150,
-    "uhd graphics 630": 180,
-
-    "gtx 750": 270,
-    "gtx 750 ti": 300,
-    "gtx 950": 380,
-    "gtx 960": 420,
-    "gtx 1050": 500,
-    "gtx 1050 ti": 600,
-    "gtx 1060": 750,
-
-    "gtx 1650": 900,
-    "gtx 1660": 1100,
-
-    "rtx 2060": 1300,
-    "rtx 3060": 1800,
-    "rtx 4060": 2400
-};
-
-
-function getGPUSScore(gpuName) {
-
-    const gpu =
-        String(gpuName)
-            .toLowerCase();
-
-
-    for (
-        const [name, score]
-        of Object.entries(GPU_SCORES)
-    ) {
-
-        if (
-            gpu.includes(name)
-        ) {
-
-            return score;
-        }
-    }
-
-
-    if (
-        gpu.includes("intel") &&
-        gpu.includes("graphics")
-    ) {
-
-        return 100;
-    }
-
-
-    return 150;
-}
-
-
-// =====================================================
-// GAME CATEGORIES
-// =====================================================
-
-const VERY_HEAVY_GAMES = [
-
-    "cyberpunk 2077",
-    "elden ring",
-    "elden ring nightreign",
-    "marvel's spider-man remastered",
-    "marvel's spider-man 2",
-    "the last of us part i",
-    "starfield",
-    "red dead redemption 2",
-    "hogwarts legacy",
-    "alan wake 2",
-    "black myth: wukong",
-    "monster hunter wilds",
-    "forza horizon 5"
-];
-
-
-const MEDIUM_GAMES = [
-
-    "grand theft auto v",
-    "grand theft auto iv",
-    "batman: arkham knight",
-    "call of duty: black ops iii",
-    "the witcher 3",
-    "forza horizon 4",
-    "far cry 5",
-    "far cry 6",
-    "resident evil 2",
-    "resident evil 3",
-    "resident evil 4"
-];
-
-
-const LIGHT_GAMES = [
-
-    "candy crush",
-    "terraria",
-    "stardew valley",
-    "among us",
-    "undertale",
-    "celeste",
-    "limbo",
-    "portal",
-    "portal 2",
-    "half-life",
-    "half-life 2",
-    "team fortress 2",
-    "left 4 dead",
-    "left 4 dead 2",
-    "minecraft",
-    "roblox",
-    "don't starve",
-    "hollow knight",
-    "cuphead",
-    "dead cells"
-];
-
-
-// =====================================================
-// COMPATIBILITY
-// =====================================================
-
-function getStatus(game) {
-
-    const gpu =
-        detectGPU().toLowerCase();
-
-    const score =
-        getGPUSScore(gpu);
-
-    const ram =
-        getCurrentRAM();
-
-    const name =
-        String(game.name || "")
-            .toLowerCase();
-
-
-    if (
-        VERY_HEAVY_GAMES.some(
-            x => name.includes(x)
-        )
-    ) {
-
-        if (
-            score >= 900 &&
-            ram >= 16
-        ) {
-
-            return {
-                className: "green",
-                label: "🟢 Compatible"
-            };
-        }
-
-
-        if (
-            score >= 300 &&
-            ram >= 8
-        ) {
-
-            return {
-                className: "yellow",
-                label: "🟡 Possible"
-            };
-        }
-
-
-        return {
-            className: "red",
-            label: "🔴 Très difficile"
-        };
-    }
-
-
-    if (
-        LIGHT_GAMES.some(
-            x => name.includes(x)
-        )
-    ) {
-
-        return {
-            className: "green",
-            label: "🟢 Compatible"
-        };
-    }
-
-
-    if (
-        MEDIUM_GAMES.some(
-            x => name.includes(x)
-        )
-    ) {
-
-        if (
-            score >= 500 &&
-            ram >= 8
-        ) {
-
-            return {
-                className: "green",
-                label: "🟢 Compatible"
-            };
-        }
-
-
-        if (
-            score >= 100 &&
-            ram >= 8
-        ) {
-
-            return {
-                className: "yellow",
-                label: "🟡 Possible"
-            };
-        }
-
-
-        return {
-            className: "red",
-            label: "🔴 Difficile"
-        };
-    }
-
-
-    return {
-        className: "yellow",
-        label: "🟡 À vérifier"
+    detectedPC = {
+        gpu,
+        ram,
+        cpu,
+        browser,
+        screen,
+        os
     };
+
+
+    document.getElementById("pcGPU").textContent =
+        gpu;
+
+    document.getElementById("pcRAM").textContent =
+        ram
+            ? `${ram} GB environ`
+            : "Non disponible";
+
+    document.getElementById("pcCPU").textContent =
+        cpu
+            ? `${cpu} cœurs logiques`
+            : "Non disponible";
+
+    document.getElementById("pcBrowser").textContent =
+        browser;
+
+    document.getElementById("pcScreen").textContent =
+        screen;
+
+    document.getElementById("pcOS").textContent =
+        os;
+
+
+    document
+        .getElementById("pcInfo")
+        .classList
+        .remove("hidden");
+
+
+    document
+        .getElementById("pcStatus")
+        .textContent =
+        "✅ Analyse terminée";
 }
 
 
-// =====================================================
-// FPS
-// =====================================================
+function getDetectedPC() {
 
-function estimateFPS(game) {
-
-    const score =
-        getGPUSScore(
-            detectGPU()
-        );
-
-
-    const name =
-        String(game.name || "")
-            .toLowerCase();
-
-
-    if (
-        LIGHT_GAMES.some(
-            x => name.includes(x)
-        )
-    ) {
-
-        return 60;
+    if (!detectedPC.gpu) {
+        detectPC();
     }
 
-
-    if (
-        name.includes("elden ring")
-    ) {
-
-        if (score >= 900) return 60;
-        if (score >= 500) return 40;
-        if (score >= 300) return 25;
-
-        return 15;
-    }
-
-
-    if (
-        name.includes("cyberpunk 2077")
-    ) {
-
-        if (score >= 900) return 60;
-        if (score >= 500) return 35;
-        if (score >= 300) return 25;
-
-        return 10;
-    }
-
-
-    if (
-        name.includes("grand theft auto v")
-    ) {
-
-        if (score >= 900) return 80;
-        if (score >= 500) return 60;
-        if (score >= 300) return 45;
-
-        return 30;
-    }
-
-
-    if (
-        name.includes("grand theft auto iv")
-    ) {
-
-        if (score >= 500) return 60;
-        if (score >= 300) return 50;
-
-        return 35;
-    }
-
-
-    if (
-        name.includes("black ops ii")
-    ) {
-
-        return 60;
-    }
-
-
-    if (
-        name.includes("black ops iii")
-    ) {
-
-        if (score >= 500) return 55;
-        if (score >= 300) return 40;
-
-        return 25;
-    }
-
-
-    if (
-        name.includes("arkham city")
-    ) {
-
-        if (score >= 500) return 80;
-        if (score >= 300) return 60;
-
-        return 40;
-    }
-
-
-    if (
-        name.includes("arkham knight")
-    ) {
-
-        if (score >= 900) return 60;
-        if (score >= 500) return 40;
-        if (score >= 300) return 25;
-
-        return 15;
-    }
-
-
-    if (score <= 120) return 30;
-
-    if (score <= 200) return 40;
-
-    if (score <= 400) return 55;
-
-    if (score <= 700) return 70;
-
-    return 90;
+    return detectedPC;
 }
 
 
-// =====================================================
-// SEARCH SUGGESTIONS
-// =====================================================
-
-function setupSearchSuggestions() {
-
-    const input =
-        document.getElementById(
-            "searchInput"
-        );
-
-
-    input.addEventListener(
-        "input",
-        () => {
-
-            const query =
-                input.value.trim();
-
-
-            clearTimeout(
-                searchTimeout
-            );
-
-
-            if (
-                query.length < 2
-            ) {
-
-                hideSuggestions();
-
-                return;
-            }
-
-
-            showSuggestionLoading();
-
-
-            searchTimeout =
-                setTimeout(
-                    () => {
-
-                        fetchSuggestions(
-                            query
-                        );
-
-                    },
-                    350
-                );
-
-        }
-    );
-
-
-    document.addEventListener(
-        "click",
-        event => {
-
-            const container =
-                document.getElementById(
-                    "searchSuggestions"
-                );
-
-
-            if (
-                !container.contains(event.target) &&
-                !input.contains(event.target)
-            ) {
-
-                hideSuggestions();
-            }
-
-        }
-    );
-}
-
-
-async function fetchSuggestions(
-    query
-) {
-
-    try {
-
-        const response =
-            await fetch(
-                `${API_URL}/games?search=${encodeURIComponent(query)}&page_size=6`
-            );
-
-
-        if (!response.ok) {
-            throw new Error(
-                "Erreur API"
-            );
-        }
-
-
-        const data =
-            await response.json();
-
-
-        displaySuggestions(
-            data.results || []
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Suggestions :",
-            error
-        );
-
-        hideSuggestions();
-    }
-}
-
-
-function showSuggestionLoading() {
-
-    const container =
-        document.getElementById(
-            "searchSuggestions"
-        );
-
-
-    container.classList.remove(
-        "hidden"
-    );
-
-
-    container.innerHTML = `
-        <div class="suggestion-loading">
-            🔎 Recherche...
-        </div>
-    `;
-}
-
-
-function displaySuggestions(
-    games
-) {
-
-    const container =
-        document.getElementById(
-            "searchSuggestions"
-        );
-
-
-    if (!games.length) {
-
-        container.innerHTML = `
-            <div class="suggestion-loading">
-                Aucun jeu trouvé.
-            </div>
-        `;
-
-        container.classList.remove(
-            "hidden"
-        );
-
-        return;
-    }
-
-
-    container.innerHTML = "";
-
-
-    games.forEach(
-        game => {
-
-            const item =
-                document.createElement(
-                    "div"
-                );
-
-
-            item.className =
-                "suggestion";
-
-
-            const cover =
-                game.cover ||
-                "";
-
-
-            const year =
-                game.releaseDate
-                    ? new Date(
-                        game.releaseDate
-                    ).getFullYear()
-                    : "—";
-
-
-            const rating =
-                game.rating
-                    ? `⭐ ${game.rating.toFixed(1)}`
-                    : "⭐ —";
-
-
-            item.innerHTML = `
-
-                <img
-                    class="suggestion-cover"
-                    src="${cover}"
-                    alt=""
-                >
-
-                <div class="suggestion-info">
-
-                    <div class="suggestion-name">
-                        ${escapeHTML(game.name)}
-                    </div>
-
-                    <div class="suggestion-meta">
-
-                        <span>
-                            ${year}
-                        </span>
-
-                        <span class="suggestion-rating">
-                            ${rating}
-                        </span>
-
-                    </div>
-
-                </div>
-            `;
-
-
-            item.addEventListener(
-                "click",
-                () => {
-
-                    hideSuggestions();
-
-                    document.getElementById(
-                        "searchInput"
-                    ).value =
-                        game.name;
-
-
-                    displayGame(
-                        game
-                    );
-
-                }
-            );
-
-
-            container.appendChild(
-                item
-            );
-
-        }
-    );
-
-
-    container.classList.remove(
-        "hidden"
-    );
-}
-
-
-function hideSuggestions() {
-
-    const container =
-        document.getElementById(
-            "searchSuggestions"
-        );
-
-
-    container.classList.add(
-        "hidden"
-    );
-}
-
-
-// =====================================================
-// SEARCH BUTTON
-// =====================================================
-
-async function searchGame() {
-
-    const input =
-        document.getElementById(
-            "searchInput"
-        );
-
-
-    const status =
-        document.getElementById(
-            "searchStatus"
-        );
-
-
-    const query =
-        input.value.trim();
-
-
-    if (!query) {
-
-        status.textContent =
-            "Entre le nom d'un jeu.";
-
-        return;
-    }
-
-
-    hideSuggestions();
-
-
-    status.textContent =
-        "🔎 Recherche dans RAWG...";
-
-
-    try {
-
-        const response =
-            await fetch(
-                `${API_URL}/games?search=${encodeURIComponent(query)}&page_size=20`
-            );
-
-
-        if (!response.ok) {
-            throw new Error(
-                `Erreur API ${response.status}`
-            );
-        }
-
-
-        const data =
-            await response.json();
-
-
-        currentGames =
-            data.results || [];
-
-
-        displaySearchResults(
-            currentGames
-        );
-
-
-        status.textContent =
-            `✅ ${Number(
-                data.count || 0
-            ).toLocaleString(
-                "fr-FR"
-            )} résultat(s)`;
-
-
-        document
-            .getElementById(
-                "catalogue"
-            )
-            .scrollIntoView({
-                behavior: "smooth"
-            });
-
-
-    } catch (error) {
-
-        console.error(
-            error
-        );
-
-
-        status.textContent =
-            "❌ Impossible de contacter CanIRun.";
-    }
-}
-
-
-// =====================================================
-// RESULTS
-// =====================================================
-
-function displaySearchResults(
-    games
-) {
-
-    const container =
-        document.getElementById(
-            "gameResults"
-        );
-
-
-    const count =
-        document.getElementById(
-            "resultCount"
-        );
-
-
-    count.textContent =
-        `${games.length} affiché(s)`;
-
-
-    if (!games.length) {
-
-        container.innerHTML = `
-            <div class="empty-state">
-                😕 Aucun jeu trouvé.
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML = "";
-
-
-    games.forEach(
-        game => {
-
-            container.appendChild(
-                createGameCard(game)
-            );
-
-        }
-    );
-}
-
-
-// =====================================================
-// GAME CARD
-// =====================================================
-
-function createGameCard(
-    game
-) {
-
-    const card =
-        document.createElement(
-            "article"
-        );
-
-
-    card.className =
-        "game-card";
-
-
-    const status =
-        getStatus(game);
-
-
-    const genres =
-        (game.genres || [])
-            .slice(0, 3)
-            .map(
-                genre =>
-                    `<span class="genre">${escapeHTML(genre)}</span>`
-            )
-            .join("");
-
-
-    card.innerHTML = `
-
-        <img
-            class="game-card-cover"
-            src="${game.cover || ""}"
-            alt="${escapeHTML(game.name)}"
-            loading="lazy"
-        >
-
-        <div class="game-card-body">
-
-            <div class="game-card-title">
-                ${escapeHTML(game.name)}
-            </div>
-
-            <div class="game-card-date">
-                ${
-                    game.releaseDate
-                        ? formatDate(
-                            game.releaseDate
-                        )
-                        : "Date inconnue"
-                }
-            </div>
-
-            <div class="game-card-genres">
-                ${genres}
-            </div>
-
-            <div class="game-status ${status.className}">
-                ${status.label}
-            </div>
-
-        </div>
-    `;
-
-
-    card.addEventListener(
-        "click",
-        () => displayGame(game)
-    );
-
-
-    return card;
-}
-
-
-// =====================================================
-// GAME DETAIL
-// =====================================================
-
-async function displayGame(
-    game
-) {
-
-    currentGame =
-        game;
-
-
-    const section =
-        document.getElementById(
-            "result"
-        );
-
-
-    section.classList.remove(
-        "hidden"
-    );
-
-
-    section.scrollIntoView({
-        behavior: "smooth"
-    });
-
-
-    document.getElementById(
-        "gameName"
-    ).textContent =
-        game.name;
-
-
-    document.getElementById(
-        "gameMeta"
-    ).textContent =
-        game.releaseDate
-            ? `Sortie : ${formatDate(
-                game.releaseDate
-            )}`
-            : "Date inconnue";
-
-
-    document.getElementById(
-        "gameCover"
-    ).src =
-        game.cover || "";
-
-
-    document.getElementById(
-        "gameDescription"
-    ).textContent =
-        game.description ||
-        "Aucune description disponible.";
-
-
-    const status =
-        getStatus(game);
-
-
-    const badge =
-        document.getElementById(
-            "compatibilityBadge"
-        );
-
-
-    badge.className =
-        `compatibility-badge ${status.className}`;
-
-
-    badge.textContent =
-        status.label;
-
-
-    const fps =
-        estimateFPS(game);
-
-
-    document.getElementById(
-        "fpsValue"
-    ).textContent =
-        `${fps} FPS`;
-
-
-    document.getElementById(
-        "fpsBar"
-    ).style.width =
-        `${Math.min(
-            (fps / 60) * 100,
-            100
-        )}%`;
-
-
-    document.getElementById(
-        "settingsValue"
-    ).textContent =
-        fps >= 60
-            ? "Élevé"
-            : fps >= 40
-                ? "Moyen"
-                : fps >= 25
-                    ? "Faible"
-                    : "Très faible";
-
-
-    document.getElementById(
-        "releaseDate"
-    ).textContent =
-        game.releaseDate
-            ? formatDate(game.releaseDate)
-            : "Inconnue";
-
-
-    document.getElementById(
-        "platformRequirement"
-    ).textContent =
-        (game.platforms || [])
-            .map(
-                p => p.name
-            )
-            .filter(Boolean)
-            .join(", ") ||
-        "Inconnues";
-
-
-    try {
-
-        const response =
-            await fetch(
-                `${API_URL}/games/${game.id}`
-            );
-
-
-        if (!response.ok) {
-            return;
-        }
-
-
-        const detailedGame =
-            await response.json();
-
-
-        if (
-            detailedGame.description
-        ) {
-
-            document.getElementById(
-                "gameDescription"
-            ).textContent =
-                detailedGame.description;
-        }
-
-
-        updateRequirements(
-            detailedGame
-        );
-
-
-        setupStoreLink(
-            detailedGame
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Erreur détails :",
-            error
-        );
-    }
-}
-
-
-// =====================================================
-// REQUIREMENTS
-// =====================================================
-
-function updateRequirements(
-    game
-) {
-
-    const pc =
-        (game.platforms || [])
-            .find(
-                p =>
-                    p.name === "PC"
-            );
-
-
-    if (
-        !pc ||
-        !pc.requirements
-    ) {
-
-        document.getElementById(
-            "ramRequirement"
-        ).textContent =
-            "Non disponible";
-
-
-        document.getElementById(
-            "gpuRequirement"
-        ).textContent =
-            "Non disponible";
-
-
-        return;
-    }
-
-
-    const minimum =
-        pc.requirements.minimum ||
-        "";
-
-
-    const recommended =
-        pc.requirements.recommended ||
-        "";
-
-
-    document.getElementById(
-        "ramRequirement"
-    ).textContent =
-        minimum ||
-        recommended ||
-        "Non disponible";
-
-
-    document.getElementById(
-        "gpuRequirement"
-    ).textContent =
-        recommended ||
-        minimum ||
-        "Non disponible";
-}
-
-
-// =====================================================
-// STORE
-// =====================================================
-
-function setupStoreLink(
-    game
-) {
-
-    const link =
-        document.getElementById(
-            "gameStoreLink"
-        );
-
-
-    const steam =
-        (game.stores || [])
-            .find(
-                store =>
-                    String(
-                        store.name
-                    )
-                        .toLowerCase()
-                        .includes("steam")
-            );
-
-
-    if (
-        steam &&
-        steam.url
-    ) {
-
-        link.href =
-            steam.url;
-
-        link.textContent =
-            "Voir sur Steam";
-
-    } else {
-
-        link.href =
-            `https://rawg.io/games/${game.slug}`;
-
-        link.textContent =
-            "Voir la fiche RAWG";
-    }
-}
-
-
-// =====================================================
-// UTILITIES
-// =====================================================
-
-function formatDate(
-    date
-) {
-
-    try {
-
-        return new Date(
-            date
-        ).toLocaleDateString(
-            "fr-FR",
-            {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
-            }
-        );
-
-    } catch {
-
-        return date;
-    }
-}
-
-
-function escapeHTML(
-    text
-) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-
-    div.textContent =
-        text ?? "";
-
-
-    return div.innerHTML;
-}
-
-
-// =====================================================
+// ============================================================
 // EVENTS
-// =====================================================
+// ============================================================
 
-document
-    .getElementById(
-        "searchButton"
-    )
-    .addEventListener(
+if (searchButton) {
+
+    searchButton.addEventListener(
         "click",
-        searchGame
+        searchGames
     );
+}
 
 
-document
-    .getElementById(
-        "searchInput"
-    )
-    .addEventListener(
+if (searchInput) {
+
+    searchInput.addEventListener(
         "keydown",
         event => {
 
-            if (
-                event.key === "Enter"
-            ) {
-
-                searchGame();
+            if (event.key === "Enter") {
+                searchGames();
             }
-
         }
     );
+}
 
 
-document
-    .getElementById(
-        "backToResults"
-    )
-    .addEventListener(
+const detectPCButton =
+    document.getElementById(
+        "detectPCButton"
+    );
+
+if (detectPCButton) {
+
+    detectPCButton.addEventListener(
+        "click",
+        detectPC
+    );
+}
+
+
+if (backButton) {
+
+    backButton.addEventListener(
         "click",
         () => {
 
-            document
-                .getElementById(
-                    "catalogue"
-                )
-                .scrollIntoView({
-                    behavior: "smooth"
-                });
+            gameDetailSection
+                .classList
+                .add("hidden");
 
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
         }
     );
+}
 
 
-// =====================================================
-// START
-// =====================================================
+// ============================================================
+// INITIAL LOAD
+// ============================================================
 
-detectPC();
+async function loadPopularGames() {
+
+    try {
+
+        gameResults.innerHTML =
+            `<div class="loading">🎮 Chargement des jeux...</div>`;
+
+        const response =
+            await fetch(
+                `${API_URL}/games?page_size=20`
+            );
+
+        if (!response.ok) {
+            throw new Error("Erreur API");
+        }
+
+        const data =
+            await response.json();
+
+        renderGames(
+            data.results || []
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        gameResults.innerHTML = `
+            <div class="empty">
+                Impossible de charger les jeux.
+            </div>
+        `;
+    }
+}
+
 
 setupSearchSuggestions();
 
-
-console.log(
-    "🎮 CanIRun chargé"
-);
-
-
-console.log(
-    "GPU :",
-    detectGPU()
-);
-
-
-console.log(
-    "RAM :",
-    getCurrentRAM(),
-    "GB"
-);
+loadPopularGames();
