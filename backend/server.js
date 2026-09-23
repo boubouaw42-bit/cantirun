@@ -11,19 +11,36 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "..", "index.html"));
+});
 
 const RAWG_API_KEY = process.env.RAWG_API_KEY;
 
 if (!RAWG_API_KEY) {
-    console.error("❌ RAWG_API_KEY manquante dans le fichier .env");
+    console.error("❌ RAWG_API_KEY manquante");
     process.exit(1);
 }
+
+/*
+|--------------------------------------------------------------------------
+| FRONTEND
+|--------------------------------------------------------------------------
+*/
+
+// Permet à Express de servir les fichiers du site
+app.use(express.static(path.join(__dirname, "..")));
+
+/*
+|--------------------------------------------------------------------------
+| API
+|--------------------------------------------------------------------------
+*/
 
 app.get("/api", (req, res) => {
     res.json({
         name: "CanIRun API",
-        version: "3.0.0",
+        version: "3.1.0",
         status: "online",
         source: "RAWG"
     });
@@ -173,11 +190,17 @@ app.get("/api/games/:id", async (req, res) => {
     }
 });
 
+/*
+|--------------------------------------------------------------------------
+| START SERVER
+|--------------------------------------------------------------------------
+*/
+
 app.listen(PORT, "0.0.0.0", () => {
     console.log("=================================");
-    console.log("🎮 CanIRun API");
+    console.log("🎮 CanIRun");
     console.log("=================================");
-    console.log(`🚀 Serveur : http://localhost:${PORT}`);
-    console.log("🌐 Source  : RAWG");
+    console.log(`🚀 Port : ${PORT}`);
+    console.log("🌐 Source : RAWG");
     console.log("=================================");
 });
